@@ -153,10 +153,11 @@ class Blockchain:
         for block in self._list:
             op = block.operation
             if op.type == "put":
-                if kvdic.get(op.aim) == None:
-                    print(f"Aimed kvstore{op.aim} is not exist")
+                if int(op.aim) in kvdic:
+                    kvdic[int(op.aim)].put(op.key, op.value)
                 else:
-                    kvdic[op.aim].put(op.key, op.value)
+                    # print(f"Aimed kvstore{op.aim} is not exist")
+                    pass
             elif op.type == "get":
                 # if kvList.get(op.aim) == None:
                 #     print("Aimed kvstore is not exist")
@@ -168,8 +169,8 @@ class Blockchain:
             elif op.type == "create":
                 for ID in op.value:
                     if self.serverID == ID:
-                        kvstore = KVStore(op.aim)
-                        kvdic[op.aim] = kvstore
+                        kvstore = KVStore(int(op.aim))
+                        kvdic[int(op.aim)] = kvstore
             else:
                 raise Exception(f"Invalid operation type: {op.type}")
         return kvdic
