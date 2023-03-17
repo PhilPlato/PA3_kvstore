@@ -162,12 +162,8 @@ class Server(object):
             print("\tDo failProcess: failProcess")
             print("\tDo failLink: failLink")
             print("\tDo fixLink: fixLink")
-            print("\tQuit: q")
             command = input("Enter command: ")
-            if command == 'q':
-                print("Quitting")
-                break
-            elif command == 'k':
+            if command == 'k':
                 print(self.kvdic)
             elif command == 'b':
                 print("Printing log...")
