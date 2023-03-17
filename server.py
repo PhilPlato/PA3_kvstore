@@ -210,12 +210,15 @@ class Server(object):
             if is_subset(aim, self.id):
                 if isinstance(key, int) and isinstance(aim, int):
                     if(self.serverPort != self.port):
+
+
                         encrytMessage = encrytBydicID(aim, data)
                         en_list_id = list()
                         en_list_id.append(encrytMessage)
                         en_list_id.append(data)
                         en_list_id.append(aim)
                         self.tellLeader(en_list_id)
+
                     else:
 
                         self.myselfExcute(data)
@@ -237,9 +240,11 @@ class Server(object):
                         en_list_id.append(encrytMessage)
                         en_list_id.append(data)
                         en_list_id.append(aim)
+                        # TODO 这里还是要forward给leader， 因为要写log，只是leader对这个消息不回复
                         self.tellLeader(en_list_id)
                     else:
                         self.myselfExcute(data)
+                    # TODO 这里sleep 3s，本地get结果
                     time.sleep(3)
                     if int(aim) in self.kvdic and int(key) in self.kvdic[int(aim)]._dict:
                         curr_Msg = dict()
