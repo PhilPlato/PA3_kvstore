@@ -476,8 +476,9 @@ class Server(object):
                                 self.resultMsg["result"] = "Success"
                             # self.resultMsg["type"] = plaintext_message[0]
                             # self.resultMsg["result"] = "Success"
-
+                        # TODO leader对get不处理
                         else:
+                            self.resultMsg.clear()
                             continue
                     else:
                         # TODO 解析的了，继续执行
