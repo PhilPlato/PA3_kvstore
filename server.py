@@ -8,7 +8,7 @@ from messages.appendEntry import AppendEntry, AcceptAppendEntry
 from messages.serverToClient import ServerToClient
 from states.candidate import *
 from states.follower import *
-# from states.leader import *
+from smkey import *
 import serverConfig
 import clientConfig
 import random
@@ -26,34 +26,37 @@ def get_file_lock():
     with open(lock_file, "w") as f:
         f.write("lock")
 
-# 释放文件锁
 def release_file_lock():
     lock_file = file_path + ".lock"
     os.remove(lock_file)
 
 def get_next_id():
-    # 获取信号量
     semaphore.acquire()
-
-    # 获取文件锁
     get_file_lock()
 
-    # 读取当前ID
     with open(file_path, "r") as f:
         current_id = int(f.read().strip())
 
-    # 更新ID
     next_id = current_id + 1
     with open(file_path, "w") as f:
         f.write(str(next_id))
 
-    # 释放文件锁
     release_file_lock()
-
-    # 释放信号量
     semaphore.release()
-
     return next_id
+
+def write_to_file(filename: str, text: str):
+    if not os.path.exists(filename):
+        open(filename, 'w').close()
+    with open(filename, "w") as f:
+        f.write(text)
+
+def in_dic(aim, s: str):
+    lst = s.strip('()').split(',')
+    if aim in lst:
+        return True
+    else:
+        return False
 
 
 
@@ -97,7 +100,8 @@ class Server(object):
         self.run()
 
     def run(self):
-        self.blockchain.write(self.backupBlockchainFileName)
+        # TODO 到底什么时候开始读自己文件
+        # self.blockchain.write(self.backupBlockchainFileName)
         self.initializeAllThreads()
         self.setupCommandTerminal()
 
@@ -160,13 +164,11 @@ class Server(object):
             s.close()
         except:
             print("Server" + resultMsg[1] + " is down!")
-
+    # TODO 这样两个不会有问题吗
     def handle_input(self, command):
         data = command.split()
-        #print(data)
-        # print("get data from user:" + str(data))
         if len(data) == 0:
-            print("Invalid command. Valid inputs are 'connect', 'snapshot', 'loss', 'token', or 'exit'.")
+            print("Invalid command.")
         elif data[0] == "put" and len(data) == 4: # put <key> <value> <dicID>
             # print(f"put {data[1]} {data[2]}")
             key = eval(data[1])
@@ -174,6 +176,7 @@ class Server(object):
             aim = eval(data[3])
             if isinstance(key, int) and isinstance(value, int) and isinstance(aim, int):
                 if(self.serverPort != self.port):
+                    data.append(str(aim))
                     self.tellLeader(data)
                 else:
                     self.myselfExcute(data)
@@ -185,6 +188,7 @@ class Server(object):
             aim = eval(data[2])
             if isinstance(key, int) and isinstance(aim, int):
                 if(self.serverPort != self.port):
+                    data.append(str(aim))
                     self.tellLeader(data)
                 else:
                     self.myselfExcute(data)
@@ -196,11 +200,42 @@ class Server(object):
             value = data[2]
             aim = get_next_id()
             if isinstance(key, int) and isinstance(aim, int):
-                data.append(str(aim))
+                data.append(aim)
+                generator = SymmetricKeyGenerator()
+                key = generator.generate_key()
+                data[1] = key
+                cipher = Fernet(key)
+                serialized_data = pickle.dumps(data)
+                encrypted_data = cipher.encrypt(serialized_data)
+                newMessage = list()
+                newMessage.append(encrypted_data)
+                newMessage.append(aim)
+
+                # print("newMessage" + str(newMessage))
+                # TODO 存了key
+                key_path = "./key/" + str(aim) + "key"
+                generator.write(key_path)
+                # TODO 存了dic
+                dic_path = "./key/" + str(aim) + "dic"
+                write_to_file(dic_path, value)
+
+                # TODO 验证能否解析
+                # TODO 验证成功
+                # new_generator = SymmetricKeyGenerator()
+                # newGen = new_generator.read((key_path))
+                # readKey = newGen.getmyKey()
+                # print("new key")
+                # print(readKey)
+                # new_cipher = Fernet(readKey)
+                # decrypted_data = new_cipher.decrypt(newMessage[0])
+                # print(decrypted_data)
+                # deserialized_data = pickle.loads(decrypted_data)
+                # print(deserialized_data)
+
                 if(self.serverPort != self.port):
-                    self.tellLeader(data)
+                    self.tellLeader(newMessage)
                 else:
-                    self.myselfExcute(data)
+                    self.myselfExcute(newMessage)
             else:
                 print("Invalid put(must be create <key> <value>)")
         else:
@@ -209,6 +244,7 @@ class Server(object):
     def tellLeader(self, data):
         print("\tTelling Leader...")
         try:
+            # print("send message" + str(data))
             self.messageDic["data"] = data
             self.messageDic["clientPort"] = self.port
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -322,8 +358,9 @@ class Server(object):
                 datadict = data_object
                 if "data" in datadict:
                     data = datadict["data"]
-                    # print("Transaction received!", trans)
-                    # self.tempTxns.append(trans)
+                    print("receive data" + str(data))
+
+
                     # get
                     if (len(datadict["data"]) == 3) and (datadict["data"][0] == 'get'):
                         op = Operation.Get(data[1], data[2])
