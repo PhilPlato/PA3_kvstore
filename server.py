@@ -16,7 +16,7 @@ import random
 from states.leader import Leader
 
 
-# TODO l锁定文件，用来保证全局自增dicID
+# TODO 锁定文件，用来保证全局自增dicID
 file_path = "./shared_file.txt"
 semaphore = threading.Semaphore()
 def get_file_lock():
