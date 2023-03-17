@@ -30,15 +30,15 @@ class Operation:
 
     @classmethod
     def Put(cls, key, value, aim):
-        return cls("put", key=key, value=value, aim=aim)
+        return cls("put", key=int(key), value=value, aim=int(aim))
 
     @classmethod
     def Get(cls, key, aim):
-        return cls("get", key=key, aim=aim)
+        return cls("get", key=int(key), aim=int(aim))
 
     @classmethod
     def Create(cls, key, value, aim):
-        return cls("create", key=key, value=value, aim=aim)
+        return cls("create", key=key, value=value, aim=int(aim))
 
     def __repr__(self):
         rep = f"Operation({repr(self.type)}"
