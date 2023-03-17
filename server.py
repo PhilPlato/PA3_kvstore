@@ -54,10 +54,16 @@ def write_to_file(filename: str, text: str):
 
 def is_subset(dicID, id: str):
     dic_path = "./key/" + str(dicID) + "dic"
-    dic_file = open(dic_path, "r")
-    read_string = dic_file.read()
-    dic_file.close()
-    return in_dic(id, read_string)
+    try:
+        with open(dic_path, "r") as dic_file:
+            dic_file = open(dic_path, "r")
+            read_string = dic_file.read()
+            dic_file.close()
+            return in_dic(id, read_string)
+    except FileNotFoundError:
+        print(f"Error: dicID not found.")
+    except IOError:
+        print(f"Error: Could not open file {dic_path}.")
 
 def in_dic(aim, s: str):
     lst = s.strip('()').split(',')
