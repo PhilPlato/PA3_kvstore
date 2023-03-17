@@ -71,6 +71,7 @@ class Follower:
                 server.currentTerm, server.id, serverConfig.SERVER_PORTS[data.sender], False
             )
             if (data.entries == []):
+                server.serverPort = serverConfig.SERVER_PORTS[data.sender]
                 print("Got HEARTBEAT")
             else:
                 server.lastLogIndex = len(server.blockchain) + 1

@@ -89,7 +89,7 @@ class Server(object):
         self.backupBlockchainFileName = f"server{self.id}_blockchain"
         self.failPro = False
         self.failLin = set()
-        # 原client中的内容
+        # 原client中的内容 serverPort为leader是谁
         self.serverPort = 7100  # serverPort先默认到7100 上 X
         self.messageDic = dict()
 
@@ -133,6 +133,7 @@ class Server(object):
                 print("Length of blockchain: " + str(len(self.blockchain._list)))
             elif command == "failProcess":
                 self.failPro = True
+                self.sendtoAllBeforeCrush()
                 break
             elif command[:8] == "failLink":
                 self.failLin.add(command[-1:])
@@ -205,6 +206,20 @@ class Server(object):
                 print("Invalid put(must be create <key> <value>)")
         else:
             print("Invalid command.")
+
+    def sendtoAllBeforeCrush(self):
+        try:
+            for recID in serverConfig.SERVER_PORTS.keys():
+                if recID != self.id:
+                    s = socket.socket()
+                    s.connect(("127.0.0.1", serverConfig.SERVER_PORTS[recID]))
+                    fname = server.backupBlockchainFileName
+                    flist = [fname, server.id]
+                    dataString = pickle.dumps(flist)
+                    s.send(dataString)
+                    s.close()
+        except socket.error as e:
+            print("Wrong happen")
 
     def tellLeader(self, data):
         print("\tTelling Leader...")
@@ -318,9 +333,9 @@ class Server(object):
             elif (isinstance(data_object, AcceptAppendEntry) and isinstance(self.currentState, Leader)):
                 if not data_object.acceptEntry:
                     self.currentState.sendWholeBlockchain(self, data_object)
-            elif (isinstance(data_object, dict) and isinstance(self.currentState, Leader)):
+            elif (isinstance(data_object, dict)):
                 datadict = data_object
-                if "data" in datadict:
+                if "data" in datadict and isinstance(self.currentState, Leader):
                     data = datadict["data"]
                     # print("Transaction received!", trans)
                     # self.tempTxns.append(trans)
