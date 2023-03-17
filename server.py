@@ -95,7 +95,9 @@ def decrytBydicID(dicID, message):
     return deserialized_data
 
 
-
+def delayPrint(resultMsg):
+    time.sleep(random.randint(9, 15))
+    print("Message recieved: " + resultMsg)
 
 class Server(object):
 
@@ -373,7 +375,8 @@ class Server(object):
             self.addToBlockchain(op)
             self.resultMsg["type"] = "create"
             self.resultMsg["result"] = "success"
-        print("Message recieved: " + str(self.resultMsg))
+        # print("Message recieved: " + str(self.resultMsg))
+        threading.Thread(target=delayPrint, args=(str(self.resultMsg),)).start()
 
     def setupListeningSocket(self, host, port):
         listeningPort = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -550,13 +553,14 @@ class Server(object):
                             "result"] = f"I'm not leader, the most possible leader is {serverConfig.SERVER_IDS[self.serverPort]}"
                         self.resultMsg["mayLeaderPort"] = self.serverPort
                 elif "result" in datadict.keys():
-                    print("Message recieved: " + str(datadict))
+                    # print("Message recieved: " + str(datadict))
+                    threading.Thread(target=delayPrint, args=(str(datadict),)).start()
                     if "mayLeaderPort" in datadict.keys():
                         self.serverPort = datadict["mayLeaderPort"]
 
             # TODO 这里要改现在的blockchain是class，
             elif (isinstance(data_object, list)):
-                print("Got whole LOG")
+                # print("Got whole LOG")
                 # TODO 这样写对吗？
                 fname = data_object[0]
                 self.blockchain = Blockchain.read(fname)
