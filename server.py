@@ -209,12 +209,21 @@ class Server(object):
         data = command.split()
         if len(data) == 0:
             print("Invalid command.")
+        elif len(data) == 2 and data[0] == "p": # p <dicID>
+            aim = eval(data[1])
+            if is_subset(aim, self.id):
+                if int(aim) in self.kvdic:
+                    print(self.kvdic[int(aim)])
+                else:
+                    print("dicID not exist")
+            else:
+                print("For now server, dicID is not exist")
         elif data[0] == "put" and len(data) == 4: # put <key> <value> <dicID>
             # print(f"put {data[1]} {data[2]}")
             key = eval(data[1])
             value = eval(data[2])
             aim = eval(data[3])
-            print(f"input time aim: {type(aim)}")
+            # print(f"input time aim: {type(aim)}")
             data.append(aim)
             if is_subset(aim, self.id):
                 if isinstance(key, int) and isinstance(aim, int):
