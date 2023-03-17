@@ -139,7 +139,12 @@ class Server(object):
 
     def run(self):
         # TODO 到底什么时候开始读自己文件
-        self.blockchain.write(self.backupBlockchainFileName)
+        saveFileName = f"server{self.id}_blockchain"
+        if os.path.isfile(saveFileName):
+            self.blockchain = Blockchain.read(saveFileName)
+            self.kvdic = self.blockchain.generateKVStore()
+        else:
+            self.blockchain.write(self.backupBlockchainFileName)
         self.initializeAllThreads()
         self.setupCommandTerminal()
 
@@ -255,7 +260,7 @@ class Server(object):
                         self.tellLeader(en_list_id)
                     else:
                         self.myselfExcute(data)
-                    time.sleep(3)
+                    time.sleep(5)
                     if int(aim) in self.kvdic and int(key) in self.kvdic[int(aim)]._dict:
                         curr_Msg = dict()
                         curr_Msg["type"] = "get"
@@ -318,18 +323,18 @@ class Server(object):
             print("Invalid command.")
 
     def sendtoAllBeforeCrush(self):
-        try:
-            for recID in serverConfig.SERVER_PORTS.keys():
+        for recID in serverConfig.SERVER_PORTS.keys():
                 if recID != self.id:
-                    s = socket.socket()
-                    s.connect(("127.0.0.1", serverConfig.SERVER_PORTS[recID]))
-                    fname = server.backupBlockchainFileName
-                    flist = [fname, server.id]
-                    dataString = pickle.dumps(flist)
-                    s.send(dataString)
-                    s.close()
-        except socket.error as e:
-            print("Wrong happen")
+                    try:
+                        s = socket.socket()
+                        s.connect(("127.0.0.1", serverConfig.SERVER_PORTS[recID]))
+                        fname = self.backupBlockchainFileName
+                        flist = [fname, self.id]
+                        dataString = pickle.dumps(flist)
+                        s.send(dataString)
+                        s.close()
+                    except socket.error as e:
+                        print("Happening")
 
     def tellLeader(self, data):
         print("\tTelling Leader...")
