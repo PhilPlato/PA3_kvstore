@@ -176,7 +176,8 @@ class Server(object):
                 print("Length of blockchain: " + str(len(self.blockchain._list)))
             elif command == "failProcess":
                 self.failPro = True
-                self.sendtoAllBeforeCrush()
+                if isinstance(self.currentState, Leader):
+                    self.sendtoAllBeforeCrush()
                 break
             elif command[:8] == "failLink":
                 self.failLin.add(command[-1:])
