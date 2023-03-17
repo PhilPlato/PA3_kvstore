@@ -16,10 +16,11 @@ from cryptography.fernet import Fernet
 
 from states.leader import Leader
 
-
 # TODO 锁定文件，用来保证全局自增dicID
 file_path = "./shared_file.txt"
 semaphore = threading.Semaphore()
+
+
 def get_file_lock():
     lock_file = file_path + ".lock"
     while os.path.exists(lock_file):
@@ -216,15 +217,12 @@ class Server(object):
             if is_subset(aim, self.id):
                 if isinstance(key, int) and isinstance(aim, int):
                     if(self.serverPort != self.port):
-
-
                         encrytMessage = encrytBydicID(aim, data)
                         en_list_id = list()
                         en_list_id.append(encrytMessage)
                         en_list_id.append(data)
                         en_list_id.append(aim)
                         self.tellLeader(en_list_id)
-
                     else:
 
                         self.myselfExcute(data)
@@ -246,11 +244,9 @@ class Server(object):
                         en_list_id.append(encrytMessage)
                         en_list_id.append(data)
                         en_list_id.append(aim)
-                        # TODO 这里还是要forward给leader， 因为要写log，只是leader对这个消息不回复
                         self.tellLeader(en_list_id)
                     else:
                         self.myselfExcute(data)
-                    # TODO 这里sleep 3s，本地get结果
                     time.sleep(3)
                     if int(aim) in self.kvdic and int(key) in self.kvdic[int(aim)]._dict:
                         curr_Msg = dict()
@@ -445,106 +441,118 @@ class Server(object):
 
                 # TODO data_obeject 需要加list
                 datadict = data_object
-                if "data" in datadict and isinstance(self.currentState, Leader):
-                    # TODO 先解析dic
-                    data = datadict["data"]
-                    encypt_message = data[0]
-                    plaintext_message = data[1]
-                    thisDicID = data[-1]
-                    dic_path = "./key/" + str(thisDicID) + "dic"
-                    dic_file = open(dic_path, "r")
-                    dic_set = dic_file.read()
-                    dic_file.close()
-                    if not in_dic(self.id, dic_set):
-                        # TODO Leader解析不了
-                        if plaintext_message[0] == "put" or plaintext_message[0] == "create":
-                            if (len(plaintext_message) == 5) and (plaintext_message[0] == 'put'):
+                if "data" in datadict.keys():
+                    if isinstance(self.currentState, Leader):
+                        # TODO 先解析dic
+                        data = datadict["data"]
+                        encypt_message = data[0]
+                        plaintext_message = data[1]
+                        thisDicID = data[-1]
+                        dic_path = "./key/" + str(thisDicID) + "dic"
+                        dic_file = open(dic_path, "r")
+                        dic_set = dic_file.read()
+                        dic_file.close()
+                        if not in_dic(self.id, dic_set):
+                            # TODO Leader解析不了
+                            if plaintext_message[0] == "put" or plaintext_message[0] == "create":
+                                if (len(plaintext_message) == 5) and (plaintext_message[0] == 'put'):
+                                    op = Operation.Put(plaintext_message[1], plaintext_message[2], plaintext_message[3])
+                                    curr_result = self._getAnswer(op)  # 如果能访问dic，getAnswer这里面会put key value
+
+                                    self.addToBlockchain(op)
+                                    if curr_result != "For now server, dicID is not exist":
+                                        self.resultMsg["type"] = "put"
+                                        self.resultMsg[
+                                            "result"] = f"put {new_data[1]} {new_data[2]} {new_data[3]} commited"
+                                    else:
+                                        self.resultMsg["type"] = "put"
+                                        self.resultMsg["result"] = "Success"
+                                elif (len(plaintext_message) == 4) and (plaintext_message[0] == 'create'):
+                                    print("create message:")
+                                    print(plaintext_message)
+                                    print("data:")
+                                    print(datadict)
+                                    op = Operation.Create(plaintext_message[1], plaintext_message[2],
+                                                          plaintext_message[3])
+                                    curr_result = self._getAnswer(op)
+
+                                    self.addToBlockchain(op)
+                                    self.resultMsg["type"] = "create"
+                                    self.resultMsg["result"] = "Success"
+                                # self.resultMsg["type"] = plaintext_message[0]
+                                # self.resultMsg["result"] = "Success"
+
+                            else:
+                                self.resultMsg.clear()
+                                continue
+                        else:
+                            # TODO 解析的了，继续执行
+                            key_path = "./key/" + str(thisDicID) + "key"
+                            generator = SymmetricKeyGenerator()
+                            key_class = generator.read((key_path))
+                            readKey = key_class.getmyKey()
+                            cipher = Fernet(readKey)
+                            print("receive data" + str(data))
+                            decrypted_data = cipher.decrypt(encypt_message)
+                            print(decrypted_data)
+                            deserialized_data = pickle.loads(decrypted_data)
+                            print(deserialized_data)
+                            new_data = deserialized_data
+
+                            # get
+                            if (len(plaintext_message) == 4) and (plaintext_message[0] == 'get'):
+                                op = Operation.Get(plaintext_message[1], plaintext_message[2])
+                                # TODO add 方法待会再看
+                                self.addToBlockchain(op)
+
+                                curr_result = self._getAnswer(op)
+                                if curr_result != "KEY_DOES_NOT_EXIST":
+                                    self.resultMsg["type"] = "get"
+                                    self.resultMsg["result"] = f"{plaintext_message[1]} = {curr_result}"
+                                else:
+                                    self.resultMsg["type"] = "get"
+                                    self.resultMsg["result"] = curr_result
+
+                            # put
+                            elif (len(plaintext_message) == 5) and (plaintext_message[0] == 'put'):
                                 op = Operation.Put(plaintext_message[1], plaintext_message[2], plaintext_message[3])
                                 curr_result = self._getAnswer(op)  # 如果能访问dic，getAnswer这里面会put key value
 
                                 self.addToBlockchain(op)
                                 if curr_result != "For now server, dicID is not exist":
                                     self.resultMsg["type"] = "put"
-                                    self.resultMsg["result"] = f"put {new_data[1]} {new_data[2]} {new_data[3]} commited"
+                                    self.resultMsg[
+                                        "result"] = f"put {plaintext_message[1]} {plaintext_message[2]} {plaintext_message[3]} commited"
                                 else:
                                     self.resultMsg["type"] = "put"
-                                    self.resultMsg["result"] = "Success"
-                            elif (len(plaintext_message) == 4) and (plaintext_message[0] == 'create'):
+                                    self.resultMsg["result"] = curr_result
+                            # create
+                            elif (len(new_data) == 4) and (plaintext_message[0] == 'create'):
                                 print("create message:")
-                                print(plaintext_message)
-                                print("data:")
+                                print(new_data)
+                                print("data 2:")
                                 print(datadict)
                                 op = Operation.Create(plaintext_message[1], plaintext_message[2], plaintext_message[3])
                                 curr_result = self._getAnswer(op)
 
                                 self.addToBlockchain(op)
                                 self.resultMsg["type"] = "create"
-                                self.resultMsg["result"] = "Success"
-                            # self.resultMsg["type"] = plaintext_message[0]
-                            # self.resultMsg["result"] = "Success"
-                        # TODO leader对get不处理
-                        else:
-                            self.resultMsg.clear()
-                            continue
+                                self.resultMsg["result"] = curr_result
+                        self.resultMsg["clientPort"] = self.port
+                        # TODO 这里开始发送给client
+                        self.sendKVResultsToClients(datadict, self.resultMsg)
+                        # TODO 这里发送给其他server
                     else:
-                        # TODO 解析的了，继续执行
-                        key_path = "./key/" + str(thisDicID) + "key"
-                        generator = SymmetricKeyGenerator()
-                        key_class = generator.read((key_path))
-                        readKey = key_class.getmyKey()
-                        cipher = Fernet(readKey)
-                        print("receive data" + str(data))
-                        decrypted_data = cipher.decrypt(encypt_message)
-                        print(decrypted_data)
-                        deserialized_data = pickle.loads(decrypted_data)
-                        print(deserialized_data)
-                        new_data = deserialized_data
-
-
-                        # get
-                        if (len(plaintext_message) == 4) and (plaintext_message[0] == 'get'):
-                            op = Operation.Get(plaintext_message[1], plaintext_message[2])
-                            # TODO add 方法待会再看
-                            self.addToBlockchain(op)
-
-                            curr_result = self._getAnswer(op)
-                            if curr_result != "KEY_DOES_NOT_EXIST":
-                                self.resultMsg["type"] = "get"
-                                self.resultMsg["result"] = f"{plaintext_message[1]} = {curr_result}"
-                            else:
-                                self.resultMsg["type"] = "get"
-                                self.resultMsg["result"] = curr_result
-
-                        # put
-                        elif (len(plaintext_message) == 5) and (plaintext_message[0] == 'put'):
-                            op = Operation.Put(plaintext_message[1], plaintext_message[2], plaintext_message[3])
-                            curr_result = self._getAnswer(op)  # 如果能访问dic，getAnswer这里面会put key value
-
-                            self.addToBlockchain(op)
-                            if curr_result != "For now server, dicID is not exist":
-                                self.resultMsg["type"] = "put"
-                                self.resultMsg["result"] = f"put {plaintext_message[1]} {plaintext_message[2]} {plaintext_message[3]} commited"
-                            else:
-                                self.resultMsg["type"] = "put"
-                                self.resultMsg["result"] = curr_result
-                        # create
-                        elif (len(new_data) == 4) and (plaintext_message[0] == 'create'):
-                            print("create message:")
-                            print(new_data)
-                            print("data 2:")
-                            print(datadict)
-                            op = Operation.Create(plaintext_message[1], plaintext_message[2], plaintext_message[3])
-                            curr_result = self._getAnswer(op)
-
-                            self.addToBlockchain(op)
-                            self.resultMsg["type"] = "create"
-                            self.resultMsg["result"] = curr_result
-                    self.resultMsg["clientPort"] = self.port
-                    # TODO 这里开始发送给client
-                    self.sendKVResultsToClients(datadict, self.resultMsg)
-                    # TODO 这里发送给其他server
-                elif "result" in datadict:
-                    print("Message recieved: " + str(data_object))
+                        print(f"I'm not leader, the most possible leader is {serverConfig.SERVER_IDS[self.serverPort]}")
+                        self.resultMsg["clientPort"] = self.port
+                        self.resultMsg["type"] = "deny"
+                        self.resultMsg[
+                            "result"] = f"I'm not leader, the most possible leader is {serverConfig.SERVER_IDS[self.serverPort]}"
+                        self.resultMsg["mayLeaderPort"] = self.serverPort
+                elif "result" in datadict.keys():
+                    print("Message recieved: " + str(datadict))
+                    if "mayLeaderPort" in datadict.keys():
+                        self.serverPort = datadict["mayLeaderPort"]
 
             # TODO 这里要改现在的blockchain是class，
             elif (isinstance(data_object, list)):
@@ -625,11 +633,6 @@ class Server(object):
     def _getAnswer(self, operation):
         "Returns the answer of performing operation on self.kvdic"
         if operation.type == "get":
-            print("+++++++++++++debug: get into get answer")
-            print(f"dicID: {operation.aim}")
-            print(f"dicID type: {type(operation.aim)}")
-            print(f"dicID: {operation.key}")
-            print(f"dicID type: {type(operation.key)}")
             if int(operation.aim) in self.kvdic and int(operation.key) in self.kvdic[int(operation.aim)]._dict:
                 return self.kvdic[int(operation.aim)].get(operation.key)
             else:
