@@ -12,6 +12,7 @@ from smkey import *
 import serverConfig
 import clientConfig
 import random
+from cryptography.fernet import Fernet
 
 from states.leader import Leader
 
@@ -612,6 +613,11 @@ class Server(object):
     def _getAnswer(self, operation):
         "Returns the answer of performing operation on self.kvdic"
         if operation.type == "get":
+            print("+++++++++++++debug: get into get answer")
+            print(f"dicID: {operation.aim}")
+            print(f"dicID type: {type(operation.aim)}")
+            print(f"dicID: {operation.key}")
+            print(f"dicID type: {type(operation.key)}")
             if int(operation.aim) in self.kvdic and int(operation.key) in self.kvdic[int(operation.aim)]._dict:
                 return self.kvdic[int(operation.aim)].get(operation.key)
             else:
